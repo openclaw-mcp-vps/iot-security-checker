@@ -1,24 +1,41 @@
 {
   "name": "iot-security-checker",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "next": "15",
-    "react": "18",
-    "react-dom": "18"
+    "@hookform/resolvers": "^4.1.3",
+    "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
+    "axios": "^1.8.4",
+    "bcryptjs": "^2.4.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.511.0",
+    "next": "15.5.15",
+    "node-nmap": "^4.0.0",
+    "nodemailer": "^7.0.5",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-hook-form": "^7.56.4",
+    "tailwind-merge": "^3.3.1",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
-    "typescript": "^5",
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "tailwindcss": "^3",
-    "postcss": "^8",
-    "autoprefixer": "^10"
+    "@tailwindcss/postcss": "^4.1.13",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.12.0",
+    "@types/nodemailer": "^8.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.8.2"
   }
 }
