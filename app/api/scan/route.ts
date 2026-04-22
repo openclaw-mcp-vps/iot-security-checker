@@ -1,145 +1,50 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { NextResponse } from "next/server";
 import { z } from "zod";
-import { NextRequest, NextResponse } from "next/server";
-import { fingerprintDevices } from "@/lib/device-fingerprinting";
-import { getAccessEmailFromRequest } from "@/lib/lemonsqueezy";
-import { calculateDeviceRisk, findVulnerabilitiesForDevice } from "@/lib/vulnerability-db";
-import { saveScan } from "@/lib/data-store";
-import { sendThreatAlertEmail } from "@/lib/mailer";
 
-export const runtime = "nodejs";
+import { parseScanOutput } from "@/lib/device-detector";
+import { saveScanHistory } from "@/lib/scan-history";
+import { buildScanSummary, buildSecurityRecommendations, matchVulnerabilities } from "@/lib/vulnerability-db";
+import type { ScanResult } from "@/lib/types";
 
-const scanRequestSchema = z
-  .object({
-    source: z.enum(["script", "browser", "manual"]).default("manual"),
-    subnet: z.string().optional(),
-    payload: z.unknown().optional(),
-    devices: z.array(z.unknown()).optional(),
-    includeLiveIntel: z.boolean().optional().default(false)
-  })
-  .refine((value) => value.payload !== undefined || value.devices !== undefined, {
-    message: "Provide payload or devices in request body."
-  });
+const scanSchema = z.object({
+  scanOutput: z.string().min(1, "Scan output cannot be empty"),
+  networkName: z.string().max(80).optional().default("Home network")
+});
 
-function countSeverities(vulnerabilities: Array<{ severity: string }>) {
-  return vulnerabilities.reduce(
-    (acc, vulnerability) => {
-      switch (vulnerability.severity) {
-        case "critical":
-          acc.critical += 1;
-          break;
-        case "high":
-          acc.high += 1;
-          break;
-        case "medium":
-          acc.medium += 1;
-          break;
-        default:
-          acc.low += 1;
-      }
-      return acc;
-    },
-    { critical: 0, high: 0, medium: 0, low: 0 }
-  );
-}
-
-export async function GET(request: NextRequest) {
-  if (request.nextUrl.searchParams.get("download") === "script") {
-    const scriptPath = path.join(process.cwd(), "scripts", "network-scanner.py");
-    const scriptBody = await fs.readFile(scriptPath, "utf8");
-
-    return new NextResponse(scriptBody, {
-      status: 200,
-      headers: {
-        "Content-Type": "text/x-python",
-        "Content-Disposition": 'attachment; filename="network-scanner.py"'
-      }
-    });
-  }
-
-  return NextResponse.json(
-    {
-      message: "Use POST to submit scan payloads or GET ?download=script to retrieve the scanner script."
-    },
-    { status: 200 }
-  );
-}
-
-export async function POST(request: NextRequest) {
-  const accessEmail = getAccessEmailFromRequest(request);
-  if (!accessEmail) {
-    return NextResponse.json({ message: "Pro access required." }, { status: 401 });
-  }
-
-  const body = await request.json().catch(() => null);
-  const parsed = scanRequestSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        message: parsed.error.issues[0]?.message ?? "Invalid scan payload"
-      },
-      { status: 400 }
-    );
-  }
-
-  const payload = parsed.data.payload ?? { devices: parsed.data.devices };
-
-  let devices;
+export async function POST(request: Request) {
   try {
-    devices = fingerprintDevices(payload);
+    const body = await request.json();
+    const input = scanSchema.parse(body);
+
+    const devices = parseScanOutput(input.scanOutput);
+
+    if (devices.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "No devices were detected from the provided scan output. Ensure your input includes Nmap report lines or JSON with open ports."
+        },
+        { status: 400 }
+      );
+    }
+
+    const vulnerabilities = matchVulnerabilities(devices);
+    const result: ScanResult = {
+      devices,
+      vulnerabilities,
+      recommendations: buildSecurityRecommendations(devices, vulnerabilities),
+      generatedAt: new Date().toISOString(),
+      riskSummary: buildScanSummary(devices, vulnerabilities)
+    };
+
+    await saveScanHistory(input.networkName, result);
+
+    return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json(
-      {
-        message: error instanceof Error ? error.message : "Unable to parse scanner payload"
-      },
-      { status: 400 }
-    );
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0]?.message || "Invalid scan payload" }, { status: 400 });
+    }
+
+    return NextResponse.json({ error: "Failed to process scan result" }, { status: 500 });
   }
-
-  const assessments = await Promise.all(
-    devices.map(async (device) => {
-      const vulnerabilities = await findVulnerabilitiesForDevice(device, {
-        includeLiveIntel: parsed.data.includeLiveIntel
-      });
-
-      return {
-        device,
-        vulnerabilities,
-        riskScore: calculateDeviceRisk(vulnerabilities, device.openPorts)
-      };
-    })
-  );
-
-  assessments.sort((a, b) => b.riskScore - a.riskScore);
-
-  const allVulnerabilities = assessments.flatMap((assessment) => assessment.vulnerabilities);
-  const severityCounts = countSeverities(allVulnerabilities);
-
-  const scan = await saveScan({
-    source: parsed.data.source,
-    subnet: parsed.data.subnet ?? "unknown",
-    scannedAt: new Date().toISOString(),
-    totalDevices: assessments.length,
-    criticalCount: severityCounts.critical,
-    highCount: severityCounts.high,
-    mediumCount: severityCounts.medium,
-    lowCount: severityCounts.low,
-    assessments
-  });
-
-  if (severityCounts.critical > 0 || severityCounts.high > 0) {
-    await sendThreatAlertEmail({
-      to: accessEmail,
-      criticalCount: severityCounts.critical,
-      highCount: severityCounts.high,
-      scanTime: scan.scannedAt
-    }).catch(() => undefined);
-  }
-
-  return NextResponse.json({
-    message: "Scan complete",
-    scan
-  });
 }

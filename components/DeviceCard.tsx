@@ -1,77 +1,84 @@
-import { Cpu, EthernetPort, Radar, ShieldCheck } from "lucide-react";
-import type { DeviceAssessment } from "@/lib/types";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { VulnerabilityAlert } from "@/components/VulnerabilityAlert";
+import { Router, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
 
-function riskClass(score: number) {
-  if (score >= 80) return "text-red-300";
-  if (score >= 60) return "text-orange-300";
-  if (score >= 35) return "text-amber-300";
-  return "text-emerald-300";
+import type { DetectedDevice, VulnerabilityFinding } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+function riskTone(level: DetectedDevice["riskLevel"]) {
+  switch (level) {
+    case "critical":
+      return "text-rose-300 border-rose-500/20 bg-rose-500/10";
+    case "high":
+      return "text-orange-300 border-orange-500/20 bg-orange-500/10";
+    case "medium":
+      return "text-amber-300 border-amber-500/20 bg-amber-500/10";
+    default:
+      return "text-emerald-300 border-emerald-500/20 bg-emerald-500/10";
+  }
 }
 
-export function DeviceCard({ assessment }: { assessment: DeviceAssessment }) {
-  const { device, vulnerabilities, riskScore } = assessment;
+export function DeviceCard({
+  device,
+  vulnerabilities
+}: {
+  device: DetectedDevice;
+  vulnerabilities: VulnerabilityFinding[];
+}) {
+  const related = vulnerabilities.filter((finding) => finding.deviceId === device.id);
+  const hasCritical = related.some((finding) => finding.severity === "critical");
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <CardTitle>{device.hostname === "unknown" ? device.ip : device.hostname}</CardTitle>
-            <CardDescription>
-              {device.vendor} • {device.model}
-            </CardDescription>
-          </div>
-          <Badge variant={riskScore >= 80 ? "critical" : riskScore >= 60 ? "high" : riskScore >= 35 ? "medium" : "low"}>
-            Risk {riskScore}
+    <Card className="border-zinc-800 bg-[#111926]">
+      <CardHeader className="space-y-3 pb-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-base text-zinc-100">
+            {device.hostname || device.model || device.ip}
+          </CardTitle>
+          <Badge variant="outline" className={riskTone(device.riskLevel)}>
+            {device.riskLevel.toUpperCase()} · Risk {device.riskScore}
           </Badge>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 text-xs text-slate-300 sm:grid-cols-4">
-          <div className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-2">
-            <p className="mb-1 flex items-center gap-1 text-slate-400">
-              <Radar className="h-3.5 w-3.5" />
-              IP
-            </p>
-            <p className="font-mono">{device.ip}</p>
-          </div>
-          <div className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-2">
-            <p className="mb-1 flex items-center gap-1 text-slate-400">
-              <EthernetPort className="h-3.5 w-3.5" />
-              Ports
-            </p>
-            <p className="font-mono">{device.openPorts.length > 0 ? device.openPorts.join(", ") : "none"}</p>
-          </div>
-          <div className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-2">
-            <p className="mb-1 flex items-center gap-1 text-slate-400">
-              <Cpu className="h-3.5 w-3.5" />
-              Category
-            </p>
-            <p>{device.category}</p>
-          </div>
-          <div className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-2">
-            <p className="mb-1 flex items-center gap-1 text-slate-400">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Confidence
-            </p>
-            <p className={riskClass(Math.round(device.confidence * 100))}>{Math.round(device.confidence * 100)}%</p>
-          </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
+          <span className="inline-flex items-center gap-1">
+            <Router className="h-3.5 w-3.5" />
+            {device.ip}
+          </span>
+          <span>{device.vendor || "Unknown vendor"}</span>
+          <span>{device.deviceType}</span>
         </div>
-
-        {vulnerabilities.length === 0 ? (
-          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
-            No known vulnerabilities matched this fingerprint. Keep firmware updates enabled and run scans weekly.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {vulnerabilities.map((vulnerability) => (
-              <VulnerabilityAlert key={vulnerability.id} vulnerability={vulnerability} />
-            ))}
-          </div>
-        )}
+      </CardHeader>
+      <CardContent className="space-y-3 pt-0">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {device.openPorts.map((port) => (
+            <Badge key={port} variant="secondary" className="bg-zinc-900 text-zinc-300">
+              {port}
+            </Badge>
+          ))}
+        </div>
+        <div className="rounded-md border border-zinc-800 bg-[#0c121b] p-3 text-sm">
+          <p className="text-zinc-300">
+            Services: {device.services.length > 0 ? device.services.join(", ") : "Service fingerprint unavailable"}
+          </p>
+          <p className="mt-2 text-zinc-400">Model fingerprint: {device.model || "Unknown"}</p>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          {related.length === 0 ? (
+            <span className="inline-flex items-center gap-1 text-emerald-300">
+              <ShieldCheck className="h-4 w-4" />
+              No matching known CVEs from the current intelligence set
+            </span>
+          ) : hasCritical ? (
+            <span className="inline-flex items-center gap-1 text-rose-300">
+              <ShieldX className="h-4 w-4" />
+              {related.length} vulnerability matches, including critical findings
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-amber-300">
+              <TriangleAlert className="h-4 w-4" />
+              {related.length} vulnerability matches need remediation
+            </span>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

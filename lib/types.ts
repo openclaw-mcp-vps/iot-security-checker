@@ -1,54 +1,49 @@
-export type Severity = "low" | "medium" | "high" | "critical";
+export type RiskLevel = "low" | "medium" | "high" | "critical";
 
-export interface FingerprintedDevice {
+export interface DetectedDevice {
   id: string;
   ip: string;
-  mac: string;
-  hostname: string;
-  vendor: string;
-  model: string;
-  category: string;
-  osGuess: string;
+  mac?: string;
+  hostname?: string;
+  vendor?: string;
+  model?: string;
+  deviceType: string;
   openPorts: number[];
+  services: string[];
+  os?: string;
   confidence: number;
-  discoveredAt: string;
+  riskScore: number;
+  riskLevel: RiskLevel;
+  lastSeen: string;
 }
 
-export interface Vulnerability {
+export type VulnerabilitySeverity = "low" | "medium" | "high" | "critical";
+
+export interface VulnerabilityFinding {
   id: string;
+  deviceId: string;
+  deviceLabel: string;
   cve: string;
   title: string;
-  severity: Severity;
+  description: string;
+  severity: VulnerabilitySeverity;
   cvss: number;
-  summary: string;
-  remediation: string;
-  references: string[];
+  exploitedInTheWild: boolean;
+  recommendation: string;
+  source: string;
   publishedAt: string;
 }
 
-export interface DeviceAssessment {
-  device: FingerprintedDevice;
-  vulnerabilities: Vulnerability[];
-  riskScore: number;
-}
-
-export interface ScanReport {
-  id: string;
-  source: "script" | "browser" | "manual";
-  subnet: string;
-  scannedAt: string;
-  totalDevices: number;
-  criticalCount: number;
-  highCount: number;
-  mediumCount: number;
-  lowCount: number;
-  assessments: DeviceAssessment[];
-}
-
-export interface PurchaseRecord {
-  id: string;
-  emailHash: string;
-  emailHint: string;
-  purchasedAt: string;
-  stripeCheckoutId: string | null;
+export interface ScanResult {
+  devices: DetectedDevice[];
+  vulnerabilities: VulnerabilityFinding[];
+  recommendations: string[];
+  generatedAt: string;
+  riskSummary: {
+    deviceCount: number;
+    vulnerableDeviceCount: number;
+    criticalCount: number;
+    highCount: number;
+    averageRiskScore: number;
+  };
 }

@@ -1,97 +1,45 @@
-import { randomUUID } from "crypto";
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { calculateDeviceRisk, findVulnerabilitiesForDevice } from "@/lib/vulnerability-db";
-import { getAccessEmailFromRequest } from "@/lib/lemonsqueezy";
-import type { FingerprintedDevice } from "@/lib/types";
+import { NextResponse } from "next/server";
 
-const deviceInputSchema = z.object({
-  vendor: z.string().default("Unknown Vendor"),
-  model: z.string().default("Unknown Model"),
-  hostname: z.string().default("unknown"),
-  ip: z.string().ip().default("192.168.1.10"),
-  mac: z.string().default("unknown"),
-  openPorts: z.array(z.number().int().positive().max(65535)).default([]),
-  category: z.string().default("IoT Device"),
-  osGuess: z.string().default("Unknown firmware")
-});
+import { fetchRelevantLiveThreats, matchVulnerabilities } from "@/lib/vulnerability-db";
+import type { DetectedDevice } from "@/lib/types";
 
-function unauthorized() {
-  return NextResponse.json({ message: "Pro access required" }, { status: 401 });
-}
-
-function toFingerprint(input: z.infer<typeof deviceInputSchema>): FingerprintedDevice {
-  return {
-    id: randomUUID(),
-    ip: input.ip,
-    mac: input.mac,
-    hostname: input.hostname,
-    vendor: input.vendor,
-    model: input.model,
-    category: input.category,
-    osGuess: input.osGuess,
-    openPorts: input.openPorts,
-    confidence: 0.8,
-    discoveredAt: new Date().toISOString()
-  };
-}
-
-export async function GET(request: NextRequest) {
-  if (!getAccessEmailFromRequest(request)) {
-    return unauthorized();
-  }
-
-  const portsParam = request.nextUrl.searchParams.get("ports");
-  const openPorts = (portsParam ?? "")
+function pseudoDevicesFromModels(rawModels: string): DetectedDevice[] {
+  const models = rawModels
     .split(",")
-    .map((entry) => Number(entry.trim()))
-    .filter((entry) => Number.isInteger(entry) && entry > 0 && entry <= 65535);
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 
-  const parsed = deviceInputSchema.safeParse({
-    vendor: request.nextUrl.searchParams.get("vendor") ?? undefined,
-    model: request.nextUrl.searchParams.get("model") ?? undefined,
-    hostname: request.nextUrl.searchParams.get("hostname") ?? undefined,
-    ip: request.nextUrl.searchParams.get("ip") ?? undefined,
-    mac: request.nextUrl.searchParams.get("mac") ?? undefined,
-    openPorts,
-    category: request.nextUrl.searchParams.get("category") ?? undefined,
-    osGuess: request.nextUrl.searchParams.get("osGuess") ?? undefined
-  });
-
-  if (!parsed.success) {
-    return NextResponse.json({ message: "Invalid query parameters" }, { status: 400 });
-  }
-
-  const fingerprint = toFingerprint(parsed.data);
-  const vulnerabilities = await findVulnerabilitiesForDevice(fingerprint, {
-    includeLiveIntel: request.nextUrl.searchParams.get("live") === "1"
-  });
-
-  return NextResponse.json({
-    vulnerabilities,
-    riskScore: calculateDeviceRisk(vulnerabilities, fingerprint.openPorts)
-  });
+  return models.map((model, index) => ({
+    id: `pseudo-${index}`,
+    ip: `192.168.1.${index + 10}`,
+    model,
+    hostname: model.toLowerCase().replace(/\s+/g, "-") + ".local",
+    vendor: model.split(" ")[0],
+    deviceType: model.toLowerCase().includes("camera") ? "Camera" : "Unknown IoT Device",
+    openPorts: [80, 443],
+    services: ["http", "https"],
+    confidence: 0.4,
+    riskScore: 30,
+    riskLevel: "medium",
+    lastSeen: new Date().toISOString()
+  }));
 }
 
-export async function POST(request: NextRequest) {
-  if (!getAccessEmailFromRequest(request)) {
-    return unauthorized();
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const models = searchParams.get("models") || "";
+  const includeLive = searchParams.get("live") === "1";
+
+  if (!models) {
+    return NextResponse.json({
+      vulnerabilities: [],
+      liveThreats: []
+    });
   }
 
-  const json = await request.json().catch(() => null);
-  const parsed = deviceInputSchema.safeParse(json);
+  const devices = pseudoDevicesFromModels(models);
+  const vulnerabilities = matchVulnerabilities(devices).slice(0, 12);
+  const liveThreats = includeLive ? await fetchRelevantLiveThreats(devices) : [];
 
-  if (!parsed.success) {
-    return NextResponse.json({ message: "Invalid device payload" }, { status: 400 });
-  }
-
-  const fingerprint = toFingerprint(parsed.data);
-  const vulnerabilities = await findVulnerabilitiesForDevice(fingerprint, {
-    includeLiveIntel: true
-  });
-
-  return NextResponse.json({
-    vulnerabilities,
-    riskScore: calculateDeviceRisk(vulnerabilities, fingerprint.openPorts)
-  });
+  return NextResponse.json({ vulnerabilities, liveThreats });
 }

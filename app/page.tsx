@@ -1,183 +1,206 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Shield, Wifi } from "lucide-react";
+import { CheckCircle2, ChevronRight, Lock, Radar, ShieldAlert, WalletCards } from "lucide-react";
+
+import { UnlockAccessForm } from "@/components/UnlockAccessForm";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+interface LandingPageProps {
+  searchParams: Promise<{ paywall?: string }>;
+}
+
 const faqs = [
   {
-    question: "How does scanning work if your server cannot see my home network?",
-    answer:
-      "You run a local scanner script on your own machine. It discovers devices and open services, then you upload the JSON report for vulnerability analysis and monitoring."
+    q: "How does the scan work without exposing my network data?",
+    a: "Scan output is analyzed only for device fingerprints, open services, and vulnerability matches. Raw scan text never leaves your control unless you submit it in the app, and you can clear stored results any time."
   },
   {
-    question: "Will this break my devices or router?",
-    answer:
-      "No. The scanner performs lightweight host discovery and port checks designed for home environments. It does not exploit vulnerabilities."
+    q: "Do I need enterprise security tools to use this?",
+    a: "No. The scanner uses familiar Nmap commands and translates the output into clear priorities: what to patch, what to isolate, and what to disable first."
   },
   {
-    question: "What happens after I pay?",
-    answer:
-      "Use the same email from checkout in your dashboard activation form. Once webhook confirmation is received, access is unlocked via secure cookie token."
+    q: "What happens after I buy?",
+    a: "Complete Stripe checkout, then verify your purchase email in the app to unlock your protected dashboard. Access is stored with a secure cookie for ongoing monitoring."
   },
   {
-    question: "Do I get alerts for new threats?",
-    answer:
-      "Yes. The app tracks your device fingerprints and flags newly mapped vulnerabilities, with optional SMTP email alerts for critical findings."
+    q: "Can this monitor new threats over time?",
+    a: "Yes. The dashboard cross-checks your detected device profile against a curated vulnerability catalog and optional live KEV feed so you can react when new exploits appear."
   }
 ];
 
-export default function HomePage() {
-  const stripeLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK;
+export default async function LandingPage({ searchParams }: LandingPageProps) {
+  const params = await searchParams;
 
   return (
-    <main className="pb-24">
-      <section className="section-shell grid-glow relative overflow-hidden rounded-b-[2.5rem] border-x border-b border-slate-700/40 pt-8 md:pt-14">
-        <nav className="mb-14 flex items-center justify-between">
-          <div>
-            <p className="text-lg font-semibold">IoT Security Checker</p>
-            <p className="text-xs text-slate-400">Home network attack surface intelligence</p>
+    <div className="min-h-screen">
+      <header className="border-b border-zinc-800/90 bg-[#0d1117]/90 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+          <div className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-100">
+            <ShieldAlert className="h-4 w-4 text-cyan-300" />
+            IoT Security Checker
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/dashboard" className="text-sm text-slate-300 hover:text-white">
-              Dashboard
+          <div className="flex items-center gap-3 text-sm">
+            <Link href="#pricing" className="text-zinc-300 hover:text-cyan-300">
+              Pricing
             </Link>
-            <Link href="/scan" className="text-sm text-slate-300 hover:text-white">
-              Scan
-            </Link>
-          </div>
-        </nav>
-
-        <div className="fade-up mx-auto max-w-4xl pb-20 text-center">
-          <p className="mb-4 inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-300">
-            Scan your home IoT devices for vulnerabilities
-          </p>
-          <h1 className="mb-6 text-4xl font-bold leading-tight md:text-6xl">
-            Stop weak smart devices from becoming your network&apos;s entry point.
-          </h1>
-          <p className="mx-auto mb-8 max-w-2xl text-base text-slate-300 md:text-lg">
-            Identify every camera, thermostat, smart speaker, and router on your home network. Match each one against active CVEs,
-            prioritize by exploit risk, and follow practical remediation steps before attackers target your model.
-          </p>
-          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a href={stripeLink} target="_blank" rel="noreferrer">
-              <Button size="lg">
-                Start Monitoring - $15/mo
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </a>
-            <Link href="/dashboard">
-              <Button variant="outline" size="lg">
-                View Product Tour
-              </Button>
-            </Link>
-          </div>
-          <p className="mt-3 text-xs text-slate-400">Hosted Stripe checkout. No card data touches your app.</p>
-        </div>
-      </section>
-
-      <section className="section-shell mt-14 grid gap-5 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <Wifi className="h-5 w-5 text-sky-300" />
-              Device Discovery
-            </CardTitle>
-            <CardDescription>Find all IoT nodes, not just what appears in your router UI.</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-slate-300">
-            Use downloadable local scan scripts or manual import mode to map active hosts, exposed ports, and weak service footprints.
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <Shield className="h-5 w-5 text-emerald-300" />
-              Vulnerability Intelligence
-            </CardTitle>
-            <CardDescription>Map discovered fingerprints to known CVEs and active advisories.</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-slate-300">
-            Prioritize critical threats first using CVSS-aware risk scoring and explicit mitigation guidance per affected device.
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <CheckCircle2 className="h-5 w-5 text-amber-300" />
-              Ongoing Monitoring
-            </CardTitle>
-            <CardDescription>Watch for newly published threats targeting your specific models.</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-slate-300">
-            Save scans, compare exposure changes over time, and trigger email alerts when critical findings appear.
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="section-shell mt-16 grid gap-6 rounded-3xl border border-slate-700/50 bg-slate-900/40 p-6 md:grid-cols-2 md:p-10">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">The problem</p>
-          <h2 className="mt-2 text-3xl font-semibold">Most home networks run 20+ connected devices with default-grade security.</h2>
-          <p className="mt-4 text-slate-300">
-            Attackers target outdated firmware in smart cameras, cheap plugs, and vulnerable routers because those devices are rarely
-            patched and often reachable from compromised internal hosts.
-          </p>
-        </div>
-        <div className="space-y-3 text-sm text-slate-200">
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
-            Breaches commonly start with one weak IoT endpoint, then pivot into laptops, NAS storage, and work accounts.
-          </div>
-          <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4">
-            Router dashboards typically hide risk context, so users miss active CVEs tied to device model and firmware age.
-          </div>
-          <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-4">
-            IoT Security Checker converts raw network data into prioritized, actionable remediation in under 5 minutes.
+            <Button asChild variant="secondary" size="sm">
+              <Link href="/dashboard">Open app</Link>
+            </Button>
           </div>
         </div>
-      </section>
+      </header>
 
-      <section className="section-shell mt-16">
-        <h2 className="text-center text-3xl font-semibold">Simple pricing for serious home network security</h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-slate-300">
-          One plan for security-conscious households and remote workers who need enterprise-style visibility without enterprise tooling.
-        </p>
-        <Card className="mx-auto mt-8 max-w-2xl border-emerald-500/40 bg-emerald-500/10">
-          <CardHeader>
-            <CardTitle className="text-2xl">IoT Security Checker Pro</CardTitle>
-            <CardDescription>Continuous vulnerability monitoring for your personal smart-home footprint.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-4 text-4xl font-bold">
-              $15<span className="text-lg font-medium text-slate-300">/month</span>
+      <main>
+        <section className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1.2fr_0.8fr] lg:px-8 lg:py-20">
+          <div className="space-y-7">
+            <Badge variant="outline" className="border-cyan-500/20 bg-cyan-500/10 text-cyan-200">
+              Scan your home IoT devices for vulnerabilities
+            </Badge>
+            <h1 className="text-4xl font-semibold tracking-tight text-zinc-100 sm:text-5xl">
+              Stop smart home devices from becoming your network&apos;s weakest link
+            </h1>
+            <p className="max-w-2xl text-lg text-zinc-300">
+              IoT Security Checker identifies cameras, routers, thermostats, and hubs on your network, maps exposed ports, and matches them against known CVEs with clear, prioritized fixes.
             </p>
-            <ul className="mb-6 space-y-2 text-sm text-slate-100">
-              <li>Full network scan ingestion and fingerprinting</li>
-              <li>CVSS-based prioritization with remediation steps</li>
-              <li>Saved scan history and risk trend visibility</li>
-              <li>Webhook-driven purchase access and secure cookie auth</li>
-            </ul>
-            <a href={stripeLink} target="_blank" rel="noreferrer">
-              <Button size="lg" className="w-full">
-                Buy Now via Stripe
+            <div className="flex flex-wrap items-center gap-3">
+              <Button asChild size="lg">
+                <a href={process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK} target="_blank" rel="noreferrer">
+                  Buy Secure Plan - $15/mo
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </a>
               </Button>
-            </a>
-          </CardContent>
-        </Card>
-      </section>
+              <Button asChild variant="outline" size="lg">
+                <Link href="/scan">Try scanner interface</Link>
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-zinc-800 bg-[#0f1723] p-4">
+                <p className="text-2xl font-semibold text-zinc-100">20+</p>
+                <p className="text-sm text-zinc-400">Typical connected devices in modern homes</p>
+              </div>
+              <div className="rounded-lg border border-zinc-800 bg-[#0f1723] p-4">
+                <p className="text-2xl font-semibold text-zinc-100">Critical CVEs</p>
+                <p className="text-sm text-zinc-400">Detected across routers and cameras every quarter</p>
+              </div>
+              <div className="rounded-lg border border-zinc-800 bg-[#0f1723] p-4">
+                <p className="text-2xl font-semibold text-zinc-100">Under 5 min</p>
+                <p className="text-sm text-zinc-400">From scan upload to prioritized remediation plan</p>
+              </div>
+            </div>
+          </div>
 
-      <section className="section-shell mt-16">
-        <h2 className="mb-6 text-3xl font-semibold">FAQ</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {faqs.map((faq) => (
-            <Card key={faq.question}>
+          <Card className="border-cyan-500/30 bg-[#111c2a]">
+            <CardHeader>
+              <CardTitle className="text-zinc-100">Unlock paid dashboard</CardTitle>
+              <CardDescription className="text-zinc-300">
+                After checkout, verify the purchase email to activate your protected monitoring workspace.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <UnlockAccessForm />
+              {params.paywall ? (
+                <p className="rounded-md border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-200">
+                  Your scanner and device inventory are protected behind the paid plan. Complete checkout and unlock access.
+                </p>
+              ) : null}
+              <div className="rounded-md border border-zinc-700 bg-[#0b121c] p-3 text-xs text-zinc-400">
+                Need to wire payments? Set `NEXT_PUBLIC_STRIPE_PAYMENT_LINK` and `STRIPE_WEBHOOK_SECRET` in your environment.
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="border-y border-zinc-800 bg-[#0f1723]/60">
+          <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-12 sm:px-6 md:grid-cols-3 lg:px-8">
+            <Card>
               <CardHeader>
-                <CardTitle className="text-base">{faq.question}</CardTitle>
+                <CardTitle className="inline-flex items-center gap-2 text-zinc-100">
+                  <Radar className="h-4 w-4 text-cyan-300" />
+                  Discover devices
+                </CardTitle>
               </CardHeader>
-              <CardContent className="text-sm text-slate-300">{faq.answer}</CardContent>
+              <CardContent className="text-sm text-zinc-300">
+                Run one scan command and uncover hidden IoT endpoints, unknown open ports, and mislabeled devices.
+              </CardContent>
             </Card>
-          ))}
-        </div>
-      </section>
-    </main>
+            <Card>
+              <CardHeader>
+                <CardTitle className="inline-flex items-center gap-2 text-zinc-100">
+                  <Lock className="h-4 w-4 text-cyan-300" />
+                  Prioritize risk
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-zinc-300">
+                Cross-reference fingerprints with known exploited vulnerabilities and focus on the highest-impact fixes first.
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="inline-flex items-center gap-2 text-zinc-100">
+                  <WalletCards className="h-4 w-4 text-cyan-300" />
+                  Stay protected
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-zinc-300">
+                Monitor for new threats targeting your exact device profile and receive actionable updates for ongoing hardening.
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        <section id="pricing" className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr]">
+            <div className="space-y-4">
+              <h2 className="text-3xl font-semibold text-zinc-100">Built for serious home network defense</h2>
+              <p className="text-zinc-300">
+                Ideal for tech-savvy homeowners and remote workers with smart home setups who need enterprise-grade visibility without enterprise complexity.
+              </p>
+              <ul className="space-y-3 text-sm text-zinc-300">
+                {["Full IoT inventory with risk scoring", "Known CVE and exploited-threat matching", "Weekly monitoring workflow and mitigation guidance", "Cookie-gated paid dashboard for private findings"].map((item) => (
+                  <li key={item} className="inline-flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-cyan-300" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <Card className="border-cyan-500/30 bg-[#111c2a]">
+              <CardHeader>
+                <CardTitle className="text-2xl text-zinc-100">Security Plan</CardTitle>
+                <CardDescription className="text-zinc-300">
+                  Continuous IoT vulnerability monitoring for <span className="font-semibold text-zinc-100">$15/month</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button asChild className="w-full" size="lg">
+                  <a href={process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK} target="_blank" rel="noreferrer">
+                    Start with Stripe Checkout
+                  </a>
+                </Button>
+                <p className="text-xs text-zinc-400">
+                  Payment is handled on Stripe-hosted checkout. After purchase, use your checkout email to unlock access.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        <section className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-semibold text-zinc-100">Frequently asked questions</h2>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {faqs.map((item) => (
+              <Card key={item.q}>
+                <CardHeader>
+                  <CardTitle className="text-base text-zinc-100">{item.q}</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-zinc-300">{item.a}</CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }
